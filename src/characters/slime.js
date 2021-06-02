@@ -1,86 +1,113 @@
 import Vector2 from 'phaser/src/math/Vector2'
+
 const eps = 20;
-export default class Slime extends Phaser.Physics.Arcade.Sprite{
-    constructor(scene, x, y, name, frame) {
-        super(scene, x, y, name, frame);
+
+const delay = 500;
+
+
+export default class Slime extends Phaser.Physics.Arcade.Sprite {
+    constructor(scene, x, y, name, frame, hp) {
+        super(scene, x, y, name, frame,hp);
         scene.physics.world.enable(this);
         scene.add.existing(this);
+        this.state = "";
+        this.hp = hp;
+        this.steerings = [];
     }
+
     update() {
-        if (this.hasArrived())
-        {
-            console.log("Slime thinks: 'Where should I go?...'");
-            this.pointOfInterest = new Vector2( Phaser.Math.RND.between(0, this.scene.physics.world.bounds.width - 1),
-                Phaser.Math.RND.between(50, this.scene.physics.world.bounds.height - 50));
-            const neededTileX = Math.floor(this.pointOfInterest.x / 32) ;
-            const neededTileY = Math.floor(this.pointOfInterest.y / 32) ;
-            const currentPositionX =  Math.floor(this.body.x / 32);
-            const currentPositionY =  Math.floor(this.body.y / 32);
-            const me = this;
-            if (!this.wantToJump)
-            {
-                this.scene.finder.findPath(currentPositionX, currentPositionY, neededTileX, neededTileY, function( path ) {
-                    if (path === null) {
-                        console.warn("Slime says: Path was not found, gonna jump!");
-                        me.path = [];
-                        me.wantToJump = true;
-                    } else {
-                        me.path = path;
-                        console.log("Slime says: Path was found, need to go...");
-                        me.selectNextLocation();
-                    }
-                });
-                this.scene.finder.calculate();
-            }
+        let velocity = new Vector2(0, 0);
+
+        this.steerings.forEach(steering => {
+            velocity = velocity.add(steering.calculateImpulse())
+        });
+        let newVelocity = velocity
+            .normalize()
+            .multiply(new Vector2(this.speed, this.speed));
+        this.body.setVelocity(newVelocity.x, newVelocity.y);
+
+
+        switch (this.state) {
+            case 'rotate':
+                break
+
+            case 'middle range':
+                break
+
+            case 'rocket':
+                break
+
+            case 'short range':
+                break
+
+            case 'get close':
+                break
+
+            default:
+                break
 
         }
-        if (this.nextLocation)
-        {
-            const body = this.body;
-            const position = body.position;
-
-            if (position.distance(this.nextLocation) < eps) {
-                this.selectNextLocation();
-            }
-            else {
-
-                let delta = Math.round(this.nextLocation.x - position.x);
-                if (delta !== 0) {
-                    body.setVelocity(delta, 0);
-                } else {
-                    delta = Math.round(this.nextLocation.y - position.y);
-
-                    body.setVelocity(0, delta);
-                }
-                this.body.velocity.normalize().scale(Math.min(Math.abs(delta), this.speed));
-            }
-        }
-
         this.updateAnimation();
     }
+
     updateAnimation() {
         const animsController = this.anims;
-        if (this.wantToJump)
-        {
-            animsController.play(this.animations[1], true);
-        } else
-        {
-            animsController.play(this.animations[0], true);
-        }
+        try {
+            if (this.hp >= 0) {
+                animsController.play(this.animations[0], true);
+            } else {
+                animsController.play(this.animations[2], true);
+            }
+        } catch (e) {
 
+        }
     }
-    hasArrived()
-    {
+
+    hasArrived() {
         return this.pointOfInterest === undefined || this.pointOfInterest.distance(this.body.position) < eps;
     }
+
     selectNextLocation() {
         const nextTile = this.path.shift();
-        if (nextTile)
-        {
+        if (nextTile) {
             this.nextLocation = new Vector2(nextTile.x * 32, nextTile.y * 32);
-        } else
-        {
+        } else {
             this.nextLocation = this.body.position;
         }
+    }
+
+    damage() {
+        if (this.hp > 0) {
+            this.hp = this.hp - 41
+        } else {
+            this.nextLocation = null
+            this.body.destroy()
+        }
+    }
+
+    selectTarget(target) {
+        this.target = target;
+        this.steerings.forEach(steering => steering.setTarget(target));
+    }
+
+    setObstacles(obstacles) {
+        this.steerings.forEach(steering => {
+
+            steering.setObstacles(obstacles);
+        });
+    }
+
+    setSteering(steering) {
+        this.steerings = [steering];
+    }
+
+    setSteerings(steerings) {
+        this.steerings = steerings;
+    }
+
+    updateSlime(x, y){
+        this.x = x+20
+        this.y = y
+        this.scale = 0.5
     }
 }
